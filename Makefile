@@ -8,7 +8,29 @@
 # Copyright (c) 2016, Joyent, Inc.
 #
 
-.PHONY: shar
-shar:
-	@echo "would build shar now"
+TIMESTAMP = $(shell date -u "+%Y%m%dT%H%M%SZ")
+FILENAME = "ziploader-$(TIMESTAMP).tgz"
 
+.PHONY: tar
+tar: deps
+	@echo "=> building tar (output/$(FILENAME))"
+	@mkdir -p output
+	@tar -zcvf output/$(FILENAME) \
+        *.js \
+        LICENSE \
+        node_modules \
+        package.json \
+        README.md
+
+.PHONY: deps
+deps:
+	@mkdir -p node_modules
+	@echo "=> npm install"
+	@npm install
+	./node_modules/.bin/kthxbai || true # work around trentm/node-kthxbai#1
+	./node_modules/.bin/kthxbai
+
+.PHONY: clean
+clean:
+	@echo "=> cleaning"
+	@rm -rf output
