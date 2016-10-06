@@ -8,14 +8,31 @@
 # Copyright (c) 2016, Joyent, Inc.
 #
 
-TIMESTAMP = $(shell date -u "+%Y%m%dT%H%M%SZ")
-FILENAME = "ziploader-$(TIMESTAMP).tgz"
+TIMESTAMP := $(shell date -u "+%Y%m%dT%H%M%SZ")
+FILENAME := "ziploader-$(TIMESTAMP)"
+UUID := $(shell uuid -v 4)
+
+.PHONY: release
+release: tar manifest
+
+.PHONY: manifest
+manifest: output/$(FILENAME).tgz
+	@echo "=> building manifest (output/$(FILENAME).manifest"
+	@cat manifest.tmpl | sed \
+        -e "s/{{BUILDSTAMP}}/$(TIMESTAMP)/g" \
+        -e "s/{{SHA1}}/$(shell sha1sum output/$(FILENAME).tgz | cut -d ' ' -f1)/g" \
+        -e "s/{{SIZE}}/$(shell stat -c '%s' output/$(FILENAME).tgz)/g" \
+        -e "s/{{UUID}}/$(UUID)/g" \
+        -e "s/{{VERSION}}/$(TIMESTAMP)/g" \
+        > output/$(FILENAME).manifest
+
+output/$(FILENAME).tgz: tar
 
 .PHONY: tar
 tar: deps
-	@echo "=> building tar (output/$(FILENAME))"
+	@echo "=> building tar (output/$(FILENAME).tgz)"
 	@mkdir -p output
-	@tar -zcvf output/$(FILENAME) \
+	@tar -zcvf output/$(FILENAME).tgz \
         *.js \
         LICENSE \
         node_modules \
