@@ -140,8 +140,11 @@ function serviceName(obj) {
 
     if (server) {
         switch (server) {
-            case 'compute node agent':
+            case 'Compute Node Agent':
                 server = 'cn-agent';
+                break;
+            case 'Compute Node API':
+                server = 'cnapi+'; // + because not sdc-clients
                 break;
             case 'WorkflowAPI':
                 server = 'wfapi';
@@ -149,6 +152,7 @@ function serviceName(obj) {
             default:
                 break;
         }
+        // console.log('SERVER [' + server + ']');
         return (obj.name + ' -> ' + server);
     }
 
