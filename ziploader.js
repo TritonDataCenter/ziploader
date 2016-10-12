@@ -132,13 +132,23 @@ function serviceName(obj) {
         }
     }
 
-    if (!server && obj.tags && obj.tags.http && obj.tags.http.headers
-        && obj.tags.http.headers.server) {
+    if (!server && obj.tags && obj.tags['http.headers']
+        && obj.tags['http.headers'].server) {
 
-        server = obj.tags.http.headers.server;
+        server = obj.tags['http.headers'].server;
     }
 
     if (server) {
+        switch (server) {
+            case 'compute node agent':
+                server = 'cn-agent';
+                break;
+            case 'WorkflowAPI':
+                server = 'wfapi';
+                break;
+            default:
+                break;
+        }
         return (obj.name + ' -> ' + server);
     }
 
