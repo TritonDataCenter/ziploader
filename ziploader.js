@@ -40,6 +40,7 @@ var CLI_OPTIONS = [
     }
 ];
 var FILES = [
+    '{{cnapi}}//var/svc/log/smartdc-site-cnapi:default.log',
     '{{docker}}/var/svc/log/smartdc-application-docker:default.log',
     '{{fwapi}}/var/svc/log/smartdc-application-fwapi:default.log',
     '{{vmapi}}/var/svc/log/smartdc-site-vmapi:default.log'
@@ -120,6 +121,30 @@ function stringifyObj(proto, prefix, obj) {
     }
 }
 
+function serviceName(obj) {
+    var server;
+
+    if (obj.tags['http.method'] && obj.tags['http.url']) {
+        if (obj.tags['client.name']
+            && obj.tags['client.name'].indexOf('sdc-clients:') === 0) {
+
+            server = obj.tags['client.name'].substr(12);
+        }
+    }
+
+    if (!server && obj.tags && obj.tags.http && obj.tags.http.headers
+        && obj.tags.http.headers.server) {
+
+        server = obj.tags.http.headers.server;
+    }
+
+    if (server) {
+        return (obj.name + ' -> ' + server);
+    }
+
+    return (obj.name);
+}
+
 function objHandler(obj) {
     var id;
     var span = {};
@@ -176,7 +201,7 @@ function objHandler(obj) {
             endpoint: {
                 ipv4: obj.tags['peer.addr'] || '0.0.0.0',
                 port: obj.tags['peer.port'] || 0,
-                serviceName: obj.name
+                serviceName: serviceName(obj)
             }, timestamp: Number(evt.timestamp) * 1000,
             value: translateAnnotationValue(evt.event)
         });
