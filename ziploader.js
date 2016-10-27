@@ -43,6 +43,7 @@ var FILES = [
     '{{cnapi}}//var/svc/log/smartdc-site-cnapi:default.log',
     '{{docker}}/var/svc/log/smartdc-application-docker:default.log',
     '{{fwapi}}/var/svc/log/smartdc-application-fwapi:default.log',
+    '{{imgapi}}/var/svc/log/smartdc-site-imgapi:default.log',
     '{{vmapi}}/var/svc/log/smartdc-site-vmapi:default.log'
 ];
 var MAGIC_KEY = 'TritonTracing';
