@@ -40,11 +40,20 @@ var CLI_OPTIONS = [
     }
 ];
 var FILES = [
-    '{{cnapi}}//var/svc/log/smartdc-site-cnapi:default.log',
+    '/var/svc/log/smartdc-agent-cn-agent:default.log',
+    '{{cloudapi}}/var/svc/log/smartdc-application-cloudapi:cloudapi-8081.log',
+    '{{cloudapi}}/var/svc/log/smartdc-application-cloudapi:cloudapi-8082.log',
+    '{{cloudapi}}/var/svc/log/smartdc-application-cloudapi:cloudapi-8083.log',
+    '{{cloudapi}}/var/svc/log/smartdc-application-cloudapi:cloudapi-8084.log',
+    '{{cnapi}}/var/svc/log/smartdc-site-cnapi:default.log',
     '{{docker}}/var/svc/log/smartdc-application-docker:default.log',
     '{{fwapi}}/var/svc/log/smartdc-application-fwapi:default.log',
     '{{imgapi}}/var/svc/log/smartdc-site-imgapi:default.log',
-    '{{vmapi}}/var/svc/log/smartdc-site-vmapi:default.log'
+    '{{napi}}/var/svc/log/smartdc-application-napi:default.log',
+    '{{papi}}/var/svc/log/smartdc-application-papi:default.log',
+    '{{vmapi}}/var/svc/log/smartdc-site-vmapi:default.log',
+    '{{workflow}}/var/svc/log/smartdc-application-wf-api:default.log',
+    '{{workflow}}/var/svc/log/smartdc-application-wf-runner:default.log'
 ];
 var MAGIC_KEY = 'TritonTracing';
 var MAGIC_VAL = 'TRITON';
