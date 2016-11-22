@@ -15,6 +15,7 @@ var child_process = require('child_process');
 var dashdash = require('dashdash');
 var forkexec = require('forkexec');
 var LineStream = require('lstream');
+var net = require('net');
 var path = require('path');
 var restify = require('restify-clients');
 var vasync = require('vasync');
@@ -221,14 +222,22 @@ function objHandler(obj) {
     // Each "log" entry has a timestamp and will be considered an "annotation"
     // in Zipkin's terminology.
     obj.logs.forEach(function _addEvt(evt) {
-        proto.annotations.push({
+        var ipKey = 'ipv4';
+        var ipVal = '0.0.0.0';
+        if (obj.tags['peer.addr'] && net.isIP(obj.tags['peer.addr'])) {
+            ipKey = net.isIPv6(obj.tags['peer.addr']) ? 'ipv6' : 'ipv4';
+            ipVal = obj.tags['peer.addr']
+        }
+        // TODO(cburroughs): Use [key]:val syntax once node v4 is available
+        var annotation = {
             endpoint: {
-                ipv4: obj.tags['peer.addr'] || '0.0.0.0',
                 port: obj.tags['peer.port'] || 0,
                 serviceName: serviceName(obj)
             }, timestamp: Number(evt.timestamp) * 1000,
             value: translateAnnotationValue(evt.event)
-        });
+        };
+        annotation['endpoint'][ipKey] = ipVal;
+        proto.annotations.push(annotation);
     });
 
     if (!obj.tags.hasOwnProperty('hostname')) {
