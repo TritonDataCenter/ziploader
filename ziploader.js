@@ -63,8 +63,10 @@ var PUMP_FREQ = 1 * 1000;
 function translateAnnotationValue(kind) {
     switch (kind) {
         case 'client-recv-res':
+        case 'client-recv':
             return 'cr';
         case 'client-send-req':
+        case 'client-send':
             return 'cs';
         case 'server-request':
             return 'sr';
@@ -160,11 +162,26 @@ function serviceName(obj) {
             case 'WorkflowAPI':
                 server = 'wfapi';
                 break;
+            case 'SmartDC Firewall API':
+                server = 'fwapi';
+                break;
+            case 'SDC Package API 7.0.0':
+                server = 'papi';
+                break;
+            case 'imgapi/3.1.3':
+                server = 'imgapi';
+                break;
             default:
                 break;
         }
         // console.log('SERVER [' + server + ']');
         return (obj.name + ' -> ' + server);
+    }
+
+    //console.log('OBJ.NAME [' + obj.name + ']');
+    switch (obj.name) {
+        case 'PackagesAPI':
+            return 'papi';
     }
 
     return (obj.name);
@@ -338,6 +355,9 @@ function startPumping(stor, cb) {
 }
 
 function processSpanLog(stor, obj) {
+    if (!obj.hasOwnProperty(MAGIC_KEY)) {
+        return;
+    }
     assert.equal(obj[MAGIC_KEY], MAGIC_VAL, 'bad magic');
 
     var zipobj = objHandler(obj);
