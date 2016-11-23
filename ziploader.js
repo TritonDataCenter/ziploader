@@ -14,6 +14,7 @@ var assert = require('assert-plus');
 var child_process = require('child_process');
 var dashdash = require('dashdash');
 var forkexec = require('forkexec');
+var fs = require('fs');
 var LineStream = require('lstream');
 var net = require('net');
 var path = require('path');
@@ -60,14 +61,20 @@ var MAGIC_KEY = 'TritonTracing';
 var MAGIC_VAL = 'TRITON';
 var PUMP_FREQ = 1 * 1000;
 
+var pumper;
+
 function translateAnnotationValue(kind) {
     switch (kind) {
         case 'client-recv-res':
         case 'client-recv':
+        case 'client-receive':
             return 'cr';
         case 'client-send-req':
         case 'client-send':
+        case 'client-start':
             return 'cs';
+        case 'rpc-context-created':
+            return 'lc';
         case 'server-request':
             return 'sr';
         case 'server-response':
@@ -178,7 +185,7 @@ function serviceName(obj) {
         return (obj.name + ' -> ' + server);
     }
 
-    //console.log('OBJ.NAME [' + obj.name + ']');
+    // console.log('OBJ.NAME [' + obj.name + ']');
     switch (obj.name) {
         case 'PackagesAPI':
             return 'papi';
@@ -281,7 +288,9 @@ function objHandler(obj) {
 
 function loadArgs(stor, cb) {
     var exitStatus = 0;
+    var filename;
     var help;
+    var idx;
     var opts;
     var parser = dashdash.createParser({options: CLI_OPTIONS});
 
@@ -289,6 +298,31 @@ function loadArgs(stor, cb) {
         opts = parser.parse(process.argv);
     } catch (e) {
         cb(e);
+    }
+
+    // if there are arguments, they should be absolute filenames
+    if (opts._args.length > 0) {
+        for (idx = 0; idx < opts._args.length; idx++) {
+            filename = opts._args[idx];
+            if (opts._args[idx] === '-') {
+                filename = '/dev/stdin';
+            }
+
+            if (filename[0] !== '/') {
+                console.error('FATAL: "' + filename + '" is not an absolute path');
+                exitStatus = 2;
+                opts.help = true;
+                break;
+            }
+
+            if (!stor.inputFiles) {
+                stor.inputFiles = [];
+            }
+
+            if (stor.inputFiles.indexOf(filename) === -1) {
+                stor.inputFiles.push(filename);
+            }
+        }
     }
 
     if (!opts.host) {
@@ -300,7 +334,7 @@ function loadArgs(stor, cb) {
     // Use `parser.help()` for formatted options help.
     if (opts.help) {
         help = parser.help({includeEnv: true}).trimRight();
-        console.log('usage: ziploader [OPTIONS]\n' + 'options:\n' + help);
+        console.log('usage: ziploader [OPTIONS] [FILES]\n' + 'options:\n' + help);
         process.exit(exitStatus);
     }
 
@@ -319,7 +353,7 @@ function pumpToZipkin(stor, load) {
     var url;
 
     url = 'http://' + stor.zipkinHost + ':' + stor.zipkinPort;
-    client = restify.createJsonClient({url: url});
+    client = restify.createJsonClient({url: url, agent: false});
 
     for (idx = 0; idx < load.length; idx++) {
         key = url + '/traces/'+ load[idx].traceId;
@@ -347,7 +381,7 @@ function startPumping(stor, cb) {
             pumpToZipkin(stor, load);
         }
 
-        setTimeout(pump, PUMP_FREQ);
+        pumper = setTimeout(pump, PUMP_FREQ);
     }
 
     pump();
@@ -355,6 +389,7 @@ function startPumping(stor, cb) {
 }
 
 function processSpanLog(stor, obj) {
+
     if (!obj.hasOwnProperty(MAGIC_KEY)) {
         return;
     }
@@ -389,6 +424,13 @@ function findUfdsAdmin(stor, cb) {
 }
 
 function findReplacements(stor, cb) {
+
+    // when in files mode, we don't need to deal with templates
+    if (stor.inputFiles) {
+        cb();
+        return;
+    }
+
     forkexec.forkExecWait({
         argv: [
             '/usr/sbin/vmadm',
@@ -419,6 +461,12 @@ function templatifyFiles(stor, cb) {
     var keys;
     var pattern;
 
+    // when in files mode, we don't need to deal with templates
+    if (stor.inputFiles) {
+        cb();
+        return;
+    }
+
     keys = Object.keys(stor.replacements);
     for (i = 0; i < keys.length; i++) {
         for (j = 0; j < FILES.length; j++) {
@@ -442,6 +490,7 @@ function templatifyFiles(stor, cb) {
 
 function startTailing(stor, cb) {
     var lstream = new LineStream({encoding: 'utf8'});
+    var stream;
     var watcher;
 
     lstream.on('readable', function _onLstreamReadable() {
@@ -465,19 +514,42 @@ function startTailing(stor, cb) {
         }
     });
 
-    watcher = child_process.spawn('/usr/bin/tail',
-        ['-0F'].concat(stor.tailFiles), {stdio: 'pipe'});
-    console.log('tail running with pid ' + watcher.pid);
+    if (stor.inputFiles) {
+        vasync.forEachParallel({
+            func: function _readInput(filename, _cb) {
+                console.error('reading from ' + filename);
+                stream = fs.createReadStream(filename, 'utf8');
+                stream.on('end', function () {
+                    _cb();
+                });
+                stream.pipe(lstream);
+            }, inputs: stor.inputFiles
+        }, function (err, results) {
+            if (pumper) {
+                clearTimeout(pumper);
+            }
 
-    watcher.stdout.pipe(lstream);
-    watcher.stdin.end();
+            // one last pump
+            if (stor.queue.length > 0) {
+                pumpToZipkin(stor, stor.queue);
+            }
+            cb(err);
+        });
+    } else {
+        watcher = child_process.spawn('/usr/bin/tail',
+            ['-0F'].concat(stor.tailFiles), {stdio: 'pipe'});
+        console.error('tail running with pid ' + watcher.pid);
 
-    watcher.on('exit', function _onWatcherExit(code, signal) {
-        console.error({code: code, signal: signal}, 'tail exited');
-        // TODO: restart if we're not done?
-        // TODO: Error if code !== 0?
-        cb();
-    });
+        watcher.stdout.pipe(lstream);
+        watcher.stdin.end();
+
+        watcher.on('exit', function _onWatcherExit(code, signal) {
+            console.error({code: code, signal: signal}, 'tail exited');
+            // TODO: restart if we're not done?
+            // TODO: Error if code !== 0?
+            cb();
+        });
+    }
 }
 
 // main
