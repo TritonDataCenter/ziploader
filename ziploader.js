@@ -200,6 +200,36 @@ function serviceName(obj) {
     return (obj.name);
 }
 
+function isLocalSpan(obj) {
+    if (obj.logs.length === 2
+        && obj.logs[0].event === 'local-begin'
+        && obj.logs[1].event === 'local-end'
+        && obj.logs[0].hasOwnProperty('timestamp')
+        && obj.logs[1].hasOwnProperty('timestamp')) {
+
+        return true;
+    }
+    return false;
+}
+
+// See also: https://github.com/openzipkin/zipkin/issues/808
+function processLocalSpan(obj, proto) {
+    var endTs = Number(obj.logs[1].timestamp) * 1000;
+    var startTs = Number(obj.logs[0].timestamp) * 1000;
+
+    proto.timestamp = startTs;
+    proto.duration = endTs - startTs;
+
+    // Always have at least 1us of duration since it makes tools happier, and
+    // our granularity is 1ms so it's likely we didn't actually take 0.000ms.
+    if (proto.duration === 0) {
+        proto.duration = 1;
+    }
+    delete proto.annotations;
+
+    return;
+}
+
 function objHandler(obj) {
     var id;
     var span = {};
@@ -247,28 +277,34 @@ function objHandler(obj) {
         proto.duration = obj.elapsed * 1000;
     }
 
-    // console.log('TAGS: ' + JSON.stringify(obj.tags));
+    // look for a special local span and if we have one, treat it specially.
+    if (isLocalSpan(obj)) {
+        processLocalSpan(obj, proto);
+    } else {
+        // console.log('TAGS: ' + JSON.stringify(obj.tags));
 
-    // Each "log" entry has a timestamp and will be considered an "annotation"
-    // in Zipkin's terminology.
-    obj.logs.forEach(function _addEvt(evt) {
-        var ipKey = 'ipv4';
-        var ipVal = '0.0.0.0';
-        if (obj.tags['peer.addr'] && net.isIP(obj.tags['peer.addr'])) {
-            ipKey = net.isIPv6(obj.tags['peer.addr']) ? 'ipv6' : 'ipv4';
-            ipVal = obj.tags['peer.addr']
-        }
-        // TODO(cburroughs): Use [key]:val syntax once node v4 is available
-        var annotation = {
-            endpoint: {
-                port: obj.tags['peer.port'] || 0,
-                serviceName: serviceName(obj)
-            }, timestamp: Number(evt.timestamp) * 1000,
-            value: translateAnnotationValue(evt.event)
-        };
-        annotation['endpoint'][ipKey] = ipVal;
-        proto.annotations.push(annotation);
-    });
+        // Each "log" entry has a timestamp and will be considered an "annotation"
+        // in Zipkin's terminology.
+        obj.logs.forEach(function _addEvt(evt) {
+            var ipKey = 'ipv4';
+            var ipVal = '0.0.0.0';
+
+            if (obj.tags['peer.addr'] && net.isIP(obj.tags['peer.addr'])) {
+                ipKey = net.isIPv6(obj.tags['peer.addr']) ? 'ipv6' : 'ipv4';
+                ipVal = obj.tags['peer.addr']
+            }
+            // TODO(cburroughs): Use [key]:val syntax once node v4 is available
+            var annotation = {
+                endpoint: {
+                    port: obj.tags['peer.port'] || 0,
+                    serviceName: serviceName(obj)
+                }, timestamp: Number(evt.timestamp) * 1000,
+                value: translateAnnotationValue(evt.event)
+            };
+            annotation['endpoint'][ipKey] = ipVal;
+            proto.annotations.push(annotation);
+        });
+    }
 
     if (!obj.tags.hasOwnProperty('hostname')) {
         obj.tags.hostname = obj.hostname;
@@ -362,8 +398,12 @@ function pumpToZipkin(stor, load) {
     var traces = {};
     var url;
 
+    if (!stor.dryRun) {
+        url = 'http://' + stor.zipkinHost + ':' + stor.zipkinPort;
+    }
+
     for (idx = 0; idx < load.length; idx++) {
-        key = url + '/traces/'+ load[idx].traceId;
+        key = (url ? url + '/traces/'+ load[idx].traceId : load[idx].traceId);
         traces[key] = (traces[key] ? traces[key] + 1 : 1);
         console.error('[' + load[idx].traceId + '/' + load[idx].zonename + ']: ' + load[idx].parentId + ' -> ' + load[idx].id + ' (' + load[idx].name + ')');
         delete load[idx].zonename;
@@ -374,7 +414,6 @@ function pumpToZipkin(stor, load) {
         return;
     }
 
-    url = 'http://' + stor.zipkinHost + ':' + stor.zipkinPort;
     client = restify.createJsonClient({url: url, agent: false});
 
     client.post('/api/v1/spans', load, function(err, req, res, obj) {
