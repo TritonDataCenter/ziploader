@@ -23,6 +23,11 @@ var vasync = require('vasync');
 
 var CLI_OPTIONS = [
     {
+        names: ['dryrun', 'n'],
+        type: 'bool',
+        help: 'Dump what would be sent to zipkin. (without sending)'
+    },
+    {
         names: ['help', 'h'],
         type: 'bool',
         help: 'Print this help and exit.'
@@ -181,6 +186,7 @@ function serviceName(obj) {
             default:
                 break;
         }
+
         // console.log('SERVER [' + server + ']');
         return (obj.name + ' -> ' + server);
     }
@@ -325,7 +331,9 @@ function loadArgs(stor, cb) {
         }
     }
 
-    if (!opts.host) {
+    if (opts.dryrun) {
+        stor.dryRun = true;
+    } else if (!opts.host) {
         console.error('FATAL: Zipkin host is required.');
         exitStatus = 2;
         opts.help = true;
@@ -338,8 +346,10 @@ function loadArgs(stor, cb) {
         process.exit(exitStatus);
     }
 
-    stor.zipkinHost = opts.host;
-    stor.zipkinPort = opts.port;
+    if (!opts.dryrun) {
+        stor.zipkinHost = opts.host;
+        stor.zipkinPort = opts.port;
+    }
 
     cb();
 }
@@ -352,15 +362,20 @@ function pumpToZipkin(stor, load) {
     var traces = {};
     var url;
 
-    url = 'http://' + stor.zipkinHost + ':' + stor.zipkinPort;
-    client = restify.createJsonClient({url: url, agent: false});
-
     for (idx = 0; idx < load.length; idx++) {
         key = url + '/traces/'+ load[idx].traceId;
         traces[key] = (traces[key] ? traces[key] + 1 : 1);
-        console.log('[' + load[idx].traceId + '/' + load[idx].zonename + ']: ' + load[idx].parentId + ' -> ' + load[idx].id + ' (' + load[idx].name + ')');
+        console.error('[' + load[idx].traceId + '/' + load[idx].zonename + ']: ' + load[idx].parentId + ' -> ' + load[idx].id + ' (' + load[idx].name + ')');
         delete load[idx].zonename;
     }
+
+    if (stor.dryRun) {
+        console.log(JSON.stringify(load, null, 2));
+        return;
+    }
+
+    url = 'http://' + stor.zipkinHost + ':' + stor.zipkinPort;
+    client = restify.createJsonClient({url: url, agent: false});
 
     client.post('/api/v1/spans', load, function(err, req, res, obj) {
         assert.ifError(err);
