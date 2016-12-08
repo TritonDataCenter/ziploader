@@ -135,11 +135,26 @@ function arrayifyBinaryAnnotations(obj) {
 // 'restify.timers.checkApprovedForProvisioning': 0.007,
 // ...
 //
-// and adds them to the 'proto' object.
+// and adds them to the 'proto' object. For the special objects 'moray.rpc'
+// which don't have string values, we flatten one more level.
 //
 function stringifyObj(proto, prefix, obj) {
     var idx;
-    var keys = Object.keys(obj);
+    var keys;
+
+    if (typeof(obj) !== 'object') {
+         proto[prefix] = obj.toString();
+         return;
+    }
+
+    keys = Object.keys(obj);
+
+    if (prefix === 'moray.rpc') {
+        for (idx = 0; idx < keys.length; idx++) {
+            stringifyObj(proto, prefix + '.' + keys[idx], obj[keys[idx]]);
+        }
+        return;
+    }
 
     for (idx = 0; idx < keys.length; idx++) {
         proto[prefix + '.' + keys[idx]] = obj[keys[idx]].toString();
