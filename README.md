@@ -16,7 +16,7 @@ For now ziploader is built as a tarball. You can install the latest version usin
 
 ```
 (rm -rf /opt/custom/ziploader \
-    && mkdir /opt/custom/ziploader \
+    && mkdir -p /opt/custom/ziploader \
     && cd /opt/custom/ziploader \
     && updates-imgadm get-file -C experimental -o /tmp/ziploader.$$.tgz \
         $(updates-imgadm list --latest -C experimental -H -o uuid name=ziploader) \

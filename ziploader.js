@@ -246,7 +246,12 @@ function processLocalSpan(obj, proto) {
 }
 
 function objHandler(obj) {
+    var ba;
     var id;
+    var ipKey = 'ipv4';
+    var ipPort = 0;
+    var ipVal = '0.0.0.0';
+    var local = false;
     var span = {};
     var name;
     var proto = {};
@@ -294,19 +299,28 @@ function objHandler(obj) {
 
     // look for a special local span and if we have one, treat it specially.
     if (isLocalSpan(obj)) {
+        local = true;
         processLocalSpan(obj, proto);
+
+        if (obj.tags['peer.addr'] && net.isIP(obj.tags['peer.addr'])) {
+            ipKey = net.isIPv6(obj.tags['peer.addr']) ? 'ipv6' : 'ipv4';
+            ipVal = obj.tags['peer.addr']
+        }
+        if (obj.tags['peer.port']) {
+            ipPort = obj.tags['peer.port'];
+        }
     } else {
         // console.log('TAGS: ' + JSON.stringify(obj.tags));
 
         // Each "log" entry has a timestamp and will be considered an "annotation"
         // in Zipkin's terminology.
         obj.logs.forEach(function _addEvt(evt) {
-            var ipKey = 'ipv4';
-            var ipVal = '0.0.0.0';
+            ipKey = 'ipv4';
+            ipVal = '0.0.0.0';
 
             if (obj.tags['peer.addr'] && net.isIP(obj.tags['peer.addr'])) {
                 ipKey = net.isIPv6(obj.tags['peer.addr']) ? 'ipv6' : 'ipv4';
-                ipVal = obj.tags['peer.addr']
+                ipVal = obj.tags['peer.addr'];
             }
             // TODO(cburroughs): Use [key]:val syntax once node v4 is available
             var annotation = {
@@ -339,6 +353,22 @@ function objHandler(obj) {
     });
 
     arrayifyBinaryAnnotations(proto);
+
+    if (local) {
+        // local spans need this special binaryAnnotation per:
+        // https://github.com/openzipkin/zipkin/issues/808
+        ba = {
+            "key": "lc",
+            "value": 'localComponent',
+            "endpoint": {
+                "serviceName": serviceName(obj),
+                "ipv4": "0.0.0.0",
+                "port": "0"
+            }
+        };
+        ba.endpoint[ipKey] = ipVal;
+        proto.binaryAnnotations.push(ba);
+    }
 
     return (proto);
 }
