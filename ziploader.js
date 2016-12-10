@@ -70,6 +70,7 @@ var pumper;
 
 function translateAnnotationValue(kind) {
     switch (kind) {
+        case 'client-end':
         case 'client-recv-res':
         case 'client-recv':
         case 'client-receive':
@@ -91,20 +92,7 @@ function translateAnnotationValue(kind) {
 }
 
 function zipkinifyId(uuid) {
-    // Need to take the first 16 digits because sadly some things use v1 for
-    // generating UUIDs (I'm looking at you restify!) and it appears that zipkin
-    // chokes on such UUIDs and thinks they'll all the same because of:
-    //
-    // https://github.com/openzipkin/zipkin/commit/90342b4b5fa36ec844de4dd68ebe6ab74c5e142d
-    //
-    // which is related to:
-    //
-    // https://github.com/openzipkin/zipkin/issues/1262
-    // https://github.com/openzipkin/zipkin/issues/1298
-    //
-    // So, currently it only uses the last 16 characters even when it gets 32.
-    //
-    return (uuid.replace(/-/g, '').substr(0, 16));
+    return (uuid.replace(/-/g, ''));
 }
 
 function arrayifyBinaryAnnotations(obj) {
@@ -292,9 +280,14 @@ function objHandler(obj) {
 
     if (obj.parentSpanId && obj.parentSpanId !== '0') {
         proto.parentId = zipkinifyId(obj.parentSpanId);
+        proto.duration = obj.elapsed * 1000;
     } else {
         proto.parentId = proto.traceId;
         proto.duration = obj.elapsed * 1000;
+    }
+
+    if (proto.duration === 0) {
+        proto.duration = 1;
     }
 
     // look for a special local span and if we have one, treat it specially.
