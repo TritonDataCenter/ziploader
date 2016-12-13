@@ -310,12 +310,9 @@ function objHandler(obj) {
 
     if (obj.parentSpanId && obj.parentSpanId !== '0') {
         proto.parentId = zipkinifySpanId(obj.parentSpanId);
-        proto.duration = obj.elapsed * 1000;
-    } else {
-        proto.parentId = proto.traceId;
-        proto.duration = obj.elapsed * 1000;
     }
 
+    proto.duration = obj.elapsed * 1000;
     if (proto.duration === 0) {
         proto.duration = 1;
     }
@@ -479,7 +476,11 @@ function pumpToZipkin(stor, load) {
     for (idx = 0; idx < load.length; idx++) {
         key = (url ? url + '/traces/'+ load[idx].traceId : load[idx].traceId);
         traces[key] = (traces[key] ? traces[key] + 1 : 1);
-        console.error('[' + load[idx].traceId + '/' + load[idx].zonename + ']: ' + load[idx].parentId + ' -> ' + load[idx].id + ' (' + load[idx].name + ')');
+        var parentId = load[idx].parentId ? load[idx].parentId : 'null';
+        console.error('[' + load[idx].traceId + '/' +
+                      load[idx].zonename + ']: ' +
+                      parentId + ' -> ' + load[idx].id +
+                      ' (' + load[idx].name + ')');
         delete load[idx].zonename;
     }
 
