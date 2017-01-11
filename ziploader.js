@@ -172,7 +172,7 @@ function serviceName(obj) {
                 server = 'cn-agent';
                 break;
             case 'Compute Node API':
-                server = 'cnapi+'; // + because not sdc-clients
+                server = 'cnapi';
                 break;
             case 'WorkflowAPI':
                 server = 'wfapi';
@@ -183,11 +183,21 @@ function serviceName(obj) {
             case 'SDC Package API 7.0.0':
                 server = 'papi';
                 break;
-            case 'imgapi/3.1.3':
-                server = 'imgapi';
+            case 'SmartDataCenter Networking API':
+                server = 'napi';
                 break;
             default:
                 break;
+        }
+
+        if (server.match(/^imgapi\/[0-9\.]+$/)) {
+            server = 'imgapi';
+        }
+
+        if (obj.name === 'workflow-api') {
+            obj.name = 'wfapi';
+        } else if (obj.name === 'workflow-runner') {
+            obj.name = 'wfrunner';
         }
 
         // console.log('SERVER [' + server + ']');
@@ -198,6 +208,10 @@ function serviceName(obj) {
     switch (obj.name) {
         case 'PackagesAPI':
             return 'papi';
+        case 'workflow-api':
+            return 'wfapi';
+        case 'workflow-runner':
+            return 'wfrunner';
     }
 
     return (obj.name);
