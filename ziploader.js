@@ -39,6 +39,12 @@ var CLI_OPTIONS = [
         helpArg: 'HOST'
     },
     {
+        names: ['logList'],
+        type: 'string',
+        help: 'File containing a list of log files to pump',
+        helpArg: 'FILES'
+    },
+    {
         names: ['port', 'P'],
         type: 'string',
         help: 'Zipkin port (default 9411)',
@@ -418,6 +424,12 @@ function loadArgs(stor, cb) {
             }
         }
     }
+    if (opts.logList) {
+        stor.inputFiles = fs.readFileSync(
+            opts.logList, {encoding: 'utf8'})
+            .split('\n')
+            .filter(function(x) {return x});
+    }
 
     if (opts.dryrun) {
         stor.dryRun = true;
@@ -518,6 +530,13 @@ function processSpanLog(stor, obj) {
 }
 
 function findUfdsAdmin(stor, cb) {
+
+    // when in files mode, we don't need to deal with templates
+    if (stor.inputFiles) {
+        cb();
+        return;
+    }
+
     forkexec.forkExecWait({
         argv: ['/usr/bin/bash', '/lib/sdc/config.sh', '-json']
     }, function (err, info) {
@@ -595,11 +614,7 @@ function templatifyFiles(stor, cb) {
 }
 
 function startTailing(stor, cb) {
-    var lstream = new LineStream({encoding: 'utf8'});
-    var stream;
-    var watcher;
-
-    lstream.on('readable', function _onLstreamReadable() {
+    var _onLstreamReadable = function _onLstreamReadable(lstream) {
         var line;
         var obj;
 
@@ -618,13 +633,17 @@ function startTailing(stor, cb) {
             // read the next line
             line = lstream.read();
         }
-    });
+    };
 
     if (stor.inputFiles) {
         vasync.forEachParallel({
             func: function _readInput(filename, _cb) {
+                var lstream = new LineStream({encoding: 'utf8'});
+                lstream.on('readable', function() {
+                    _onLstreamReadable(lstream);
+                });
                 console.error('reading from ' + filename);
-                stream = fs.createReadStream(filename, 'utf8');
+                var stream = fs.createReadStream(filename, 'utf8');
                 stream.on('end', function () {
                     _cb();
                 });
@@ -642,6 +661,11 @@ function startTailing(stor, cb) {
             cb(err);
         });
     } else {
+        var lstream = new LineStream({encoding: 'utf8'});
+        lstream.on('readable', function() {
+            _onLstreamReadable(lstream);
+        });
+        var watcher;
         watcher = child_process.spawn('/usr/bin/tail',
             ['-0F'].concat(stor.tailFiles), {stdio: 'pipe'});
         console.error('tail running with pid ' + watcher.pid);
