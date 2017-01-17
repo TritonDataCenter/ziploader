@@ -97,9 +97,19 @@ function translateAnnotationValue(kind) {
     }
 }
 
-function zipkinifyId(uuid) {
+// Zipkin trace IDs are 128bit and can be represented as a hex string,
+// but with no UUID style dashes.  Span ids are still only 64 bits.
+// https://github.com/openzipkin/zipkin/issues/1298
+function zipkinifyTraceId(uuid) {
     return (uuid.replace(/-/g, ''));
 }
+
+function zipkinifySpanId(uuid) {
+    // Need to take the first 16 digits because sadly some things use v1 for
+    // generating UUIDs (I'm looking at you restify!)
+    return (zipkinifyTraceId(uuid).substr(0, 16));
+}
+
 
 function arrayifyBinaryAnnotations(obj) {
     var i;
@@ -279,8 +289,8 @@ function objHandler(obj) {
             reqId: obj.traceId
         }, // obj for now, we'll convert later
         name: obj.operation,
-        id: zipkinifyId(id),
-        traceId: zipkinifyId(obj.traceId),
+        id: zipkinifySpanId(id),
+        traceId: zipkinifyTraceId(obj.traceId),
         zonename: obj.name
     };
 
@@ -299,7 +309,7 @@ function objHandler(obj) {
     }
 
     if (obj.parentSpanId && obj.parentSpanId !== '0') {
-        proto.parentId = zipkinifyId(obj.parentSpanId);
+        proto.parentId = zipkinifySpanId(obj.parentSpanId);
         proto.duration = obj.elapsed * 1000;
     } else {
         proto.parentId = proto.traceId;
