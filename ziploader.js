@@ -470,7 +470,7 @@ function pumpToZipkin(stor, load) {
     var url;
 
     if (!stor.dryRun) {
-        url = 'http://' + stor.zipkinHost + ':' + stor.zipkinPort;
+        url = 'http://' + stor.zipkinHost + ':' + stor.zipkinPort + '/zipkin';
     }
 
     for (idx = 0; idx < load.length; idx++) {
