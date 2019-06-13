@@ -651,7 +651,7 @@ function startTailing(stor, cb) {
         while (line !== null) {
             assert.string(line, 'line');
 
-            if (line.indexOf('{') === 0 && line.indexOf(MAGIC_KEY) !== -1) {
+            if (line[0] === '{' && line.indexOf(MAGIC_KEY) !== -1) {
                 // just let it throw if not JSON: that's a bug
                 obj = JSON.parse(line.trim());
                 processSpanLog(stor, obj);
