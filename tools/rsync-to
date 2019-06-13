@@ -1,0 +1,39 @@
+#!/bin/bash
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+#
+# Copyright (c) 2019, Joyent, Inc.
+#
+
+#
+# Rsync the master in this working copy to the install on the given HN.
+#
+
+#set -o xtrace
+set -o errexit
+
+TOP=$(cd $(dirname $0)/../; pwd)
+NODE=$1
+
+LOCATION=/opt/custom/ziploader
+echo "LOCATION: $LOCATION"
+
+extraOpts=
+if [[ $(uname -s) != "SunOS" ]]; then
+    extraOpts="--exclude *.node --exclude build"
+else
+    # Clean node_modules everytime.
+    ssh $NODE rm -rf "$LOCATION/node_modules"
+fi
+
+rsync -av ${TOP}/ \
+    $NODE:"$LOCATION/" \
+    $extraOpts \
+    --exclude .git/ \
+    --exclude /deps/ \
+    --exclude /tools/ \
+    --exclude /tmp/
