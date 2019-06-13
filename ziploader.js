@@ -172,59 +172,59 @@ function stringifyObj(proto, prefix, obj) {
 }
 
 function serviceName(obj) {
-    var server;
+    // var server;
 
-    if (obj.tags['http.method'] && obj.tags['http.url']) {
-        if (obj.tags['client.name']
-            && obj.tags['client.name'].indexOf('sdc-clients:') === 0) {
+    // if (obj.tags['http.method'] && obj.tags['http.url']) {
+    //     if (obj.tags['client.name']
+    //         && obj.tags['client.name'].indexOf('sdc-clients:') === 0) {
 
-            server = obj.tags['client.name'].substr(12);
-        }
-    }
+    //         server = obj.tags['client.name'].substr(12);
+    //     }
+    // }
 
-    if (!server && obj.tags && obj.tags['http.headers']
-        && obj.tags['http.headers'].server) {
+    // if (!server && obj.tags && obj.tags['http.headers']
+    //     && obj.tags['http.headers'].server) {
 
-        server = obj.tags['http.headers'].server;
-    }
+    //     server = obj.tags['http.headers'].server;
+    // }
 
-    if (server) {
-        switch (server) {
-            case 'Compute Node Agent':
-                server = 'cn-agent';
-                break;
-            case 'Compute Node API':
-                server = 'cnapi';
-                break;
-            case 'WorkflowAPI':
-                server = 'wfapi';
-                break;
-            case 'SmartDC Firewall API':
-                server = 'fwapi';
-                break;
-            case 'SDC Package API 7.0.0':
-                server = 'papi';
-                break;
-            case 'SmartDataCenter Networking API':
-                server = 'napi';
-                break;
-            default:
-                break;
-        }
+    // if (server) {
+    //     switch (server) {
+    //         case 'Compute Node Agent':
+    //             server = 'cn-agent';
+    //             break;
+    //         case 'Compute Node API':
+    //             server = 'cnapi';
+    //             break;
+    //         case 'WorkflowAPI':
+    //             server = 'wfapi';
+    //             break;
+    //         case 'SmartDC Firewall API':
+    //             server = 'fwapi';
+    //             break;
+    //         case 'SDC Package API 7.0.0':
+    //             server = 'papi';
+    //             break;
+    //         case 'SmartDataCenter Networking API':
+    //             server = 'napi';
+    //             break;
+    //         default:
+    //             break;
+    //     }
 
-        if (server.match(/^imgapi\/[0-9\.]+$/)) {
-            server = 'imgapi';
-        }
+    //     if (server.match(/^imgapi\/[0-9\.]+$/)) {
+    //         server = 'imgapi';
+    //     }
 
-        if (obj.name === 'workflow-api') {
-            obj.name = 'wfapi';
-        } else if (obj.name === 'workflow-runner') {
-            obj.name = 'wfrunner';
-        }
+    //     if (obj.name === 'workflow-api') {
+    //         obj.name = 'wfapi';
+    //     } else if (obj.name === 'workflow-runner') {
+    //         obj.name = 'wfrunner';
+    //     }
 
-        // console.log('SERVER [' + server + ']');
-        return (obj.name + ' -> ' + server);
-    }
+    //     // console.log('SERVER [' + server + ']');
+    //     return (obj.name + ' -> ' + server);
+    // }
 
     // console.log('OBJ.NAME [' + obj.name + ']');
     switch (obj.name) {
