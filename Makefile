@@ -51,3 +51,6 @@ deps:
 clean:
 	@echo "=> cleaning"
 	@rm -rf output
+
+check:
+	jshint *.js
