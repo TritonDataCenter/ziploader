@@ -116,9 +116,15 @@ function arrayifyBinaryAnnotations(obj) {
     var newBA = [];
 
     Object.keys(obj.binaryAnnotations).forEach(function (k) {
+        var value = obj.binaryAnnotations[k];
+        // Need to escape the value "tags", otherwise zipkin thinks this is a
+        // v2 span element and the POST will fail.
+        if (value === 'tags') {
+            value = 'tags_';
+        }
         newBA.push({
             key: k,
-            value: obj.binaryAnnotations[k]
+            value: value
         });
     });
 
