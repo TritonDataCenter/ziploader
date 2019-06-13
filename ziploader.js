@@ -497,7 +497,17 @@ function pumpToZipkin(stor, load) {
 
     client = restify.createJsonClient({url: url, agent: false});
 
-    client.post('/api/v1/spans', load, function(err, req, res, obj) {
+    client.post({path: '/api/v1/spans',
+                // Newer Zipkin servers will fail if the accept type is json.
+                headers: {
+                    accept: '*/*'
+                }
+            },
+            load,
+            function(err, req, res, obj) {
+        if (err) {
+            console.log('Error: ', err);
+        }
         assert.ifError(err);
         console.log('%d -> %j', res.statusCode, res.headers);
         // console.log(JSON.stringify(load, null, 2));
