@@ -551,6 +551,12 @@ function processSpanLog(stor, obj) {
         return;
     }
 
+    // XXX: Skip docker:exec calls (i.e. interactive docker commands).
+    if (obj.name === 'execstart' && obj.localEndpoint &&
+            obj.localEndpoint.serviceName === 'docker') {
+        return;
+    }
+
     stor.queue.push(zipobj);
 
     return;
