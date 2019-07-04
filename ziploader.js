@@ -28,6 +28,11 @@ var CLI_OPTIONS = [
         help: 'Dump what would be sent to zipkin. (without sending)'
     },
     {
+        names: ['filename', 'f'],
+        type: 'arrayOfString',
+        help: 'Log filepath to process (can be used multiple times)'
+    },
+    {
         names: ['help', 'h'],
         type: 'bool',
         help: 'Print this help and exit.'
@@ -442,6 +447,9 @@ function loadArgs(stor, cb) {
             opts.logList, {encoding: 'utf8'})
             .split('\n')
             .filter(function(x) {return x});
+    }
+    if (Array.isArray(opts.filename) && opts.filename.length > 0) {
+        stor.inputFiles = (stor.inputFiles || []).concat(opts.filename);
     }
 
     if (opts.dryrun) {
