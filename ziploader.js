@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 //
-// Copyright 2016, Joyent, Inc.
+// Copyright 2019 Joyent, Inc.
 //
 // This tool is intended to run in the global zone of a Triton node and will
 // stream the triton tracer logs to a specified zipkin instance.
@@ -75,6 +75,7 @@ var FILES = [
 ];
 var MAGIC_KEY = 'TritonTracing';
 var MAGIC_VAL = 'TRITON';
+var MAX_BATCH_LENGTH = 100;
 var PUMP_FREQ = 1 * 1000;
 
 var pumper;
@@ -566,6 +567,14 @@ function processSpanLog(stor, obj) {
     }
 
     stor.queue.push(zipobj);
+
+    // Batch logs into smaller groups to be processed, otherwise the we may
+    // end up with a request that's too large for Zipkin to handle.
+    if (stor.queue.length > MAX_BATCH_LENGTH) {
+        var load = stor.queue.slice(0, 100);
+        stor.queue = stor.queue.slice(100);
+        pumpToZipkin(stor, load);
+    }
 
     return;
 }
