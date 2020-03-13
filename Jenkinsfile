@@ -27,18 +27,8 @@ pipeline {
                 sh('''
 set -o errexit
 set -o pipefail
-<<<<<<< HEAD
-
-# Build a tar and push to updates.joyent.com
-make clean release
-ls -l output/ziploader-*
-updates-imgadm -i ~/.ssh/automation.id_rsa -u mg --channel="experimental" \
-    import -m output/*.manifest -f output/*.tgz
-
-# Add -ddd back in once that's fixed
-=======
+ENGBLD_BITS_UPLOAD_IMGAPI=true
 make all release publish bits-upload
->>>>>>> b1c0bbc... TOOLS-2452 add Jenkinsfiles for final molybdenum jenkinsBuildHook repos
 ''')
             }
         }
