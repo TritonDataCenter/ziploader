@@ -27,7 +27,7 @@ pipeline {
                 sh('''
 set -o errexit
 set -o pipefail
-ENGBLD_BITS_UPLOAD_IMGAPI=true
+export ENGBLD_BITS_UPLOAD_IMGAPI=true
 make all release publish bits-upload
 ''')
             }
