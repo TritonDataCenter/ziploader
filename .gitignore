@@ -1,2 +1,5 @@
-node_modules
-output
+/make_stamps
+/node_modules
+/tmp
+/bits
+/build
